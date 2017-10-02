@@ -579,16 +579,41 @@ local({
 })
 
 fit <- lm(y ~ x, out2)
+# residuals vs. fitted values
 plot(fit, which=1)
+
 fitno <- lm(y ~ x, out2[-1,])
 plot(fitno, which=1)
+
 coef(fit) - coef(fitno)
 # matches to the first row in:
 head(dfbeta(fit)) 
 
 # influence calculation
-resno <- out2[1,'y'] - predict(fitno, out2[1,])
-1-resid(fit)[1]/resno
-head(hatvalues(fit))
+resno <- out2[1,'y'] - predict(fitno, out2[1,]) # actual y minus predicted y based on model without outlier
+1-resid(fit)[1]/resno # resid(fit)[1] - residual for outlier, should be small. 
+# 0.6311547 
+head(hatvalues(fit)) # measure of influence for each row: near 1 indicates high influence
 
-sigma <- sqrt(deviance(fit)/df.residual(fit))
+# standardized residuals
+sigma <- sqrt(deviance(fit)/df.residual(fit)) # deviance = residual sum of squares
+rstd <- resid(fit)/(sigma*sqrt(1 - hatvalues(fit))) #  multiply by sqrt(1-hatvalues(fit)) to estimate std of individual samples
+head(cbind(rstd, rstandard(fit)))
+plot(fit, which = 3) # Scale-Location plot shows the square root of standardized residuals against fitted values
+plot(fit, which = 2) # QQ plot of standardized residuals against normal with constant variance
+
+# studentized residuals
+sigma1 <- sqrt(deviance(fitno)/df.residual(fitno))
+#  Studentized residual for the outlier sample
+resid(fit)[1]/(sigma1*sqrt(1 - hatvalues(fit)[1]))
+#-7.664261 
+# same as value #1 in here:
+head(rstudent(fit))
+
+# cook's distance
+dy <- predict(fitno, out2) - predict(fit, out2)
+sum(dy^2)/(2*sigma^2)
+# [1] 23.07105
+# same as:
+cooks.distance(fit)[1]
+plot(fit, which=5)
