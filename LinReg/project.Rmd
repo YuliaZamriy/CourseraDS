@@ -1,0 +1,128 @@
+---
+title: 'Coursera: Linear Regression Course Project'
+author: "YZ"
+date: "October 25, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Assignment Overview
+
+Which car characteristics have a significant impact on miles per gallon (MPG)? In particular,
+
+- Is an automatic or manual transmission better for MPG?
+
+- Quantify the MPG difference between automatic and manual transmissions
+
+Data source: mtcars
+
+## Executive Summary
+
+Based on our analysis, there are three car characteristics that determine MPG:
+
+- Type of transmission: automotic is more taxing on MPG
+
+- Weight of a car: heavier cars consume more gas per mile
+
+- Acceleration time (as measured by time per 1/4 mile): faster cars have lower MPG
+
+- Cars with maual transmission have around 3 MPG more compared to automatic transmission, keeping everything else fixed
+
+- However, if we control for car's weight, the difference in MPG between manual and automatic varies significantly: the lighter the car, the bigger the difference in MPG between manual and automatic transmissions
+
+## Data Overview
+
+Source dataset *mtcars* has 11 variables:
+```{r}
+dim(mtcars)
+```
+Our main variable of interest (dependent) is *mpg*.
+
+Our main variable of interest (independent) is *am* (Transmission (0 = automatic, 1 = manual)).
+
+```{r}
+table(mtcars$am)
+```
+We can quickly check if there is emperical difference between two types of transmission:
+```{r}
+aggregate(data = mtcars, mpg ~ am, mean)
+```
+Indeed, manual cars on average have 7 MPG more. However, this doesn't account for any other factors.
+Is it possible that other car characteristics are more impactful on MPG? Let's take a look at MPG correlation to other available factors:
+```{r}
+cor(mtcars)[1,]
+```
+
+Based on the above there are a lot of other factors that are highly correlated with MPG
+
+## What car characteristics are the strongest determinants of MPG?
+
+After multiple itirations (see Appendix), we selected the model that contains three factors: Transmission, Weight, Time for 1/4 mile. 
+```{r}
+coefficients(lm(formula = mpg ~ am + wt + qsec, data = mtcars))
+```
+
+Based on the above, cars with manual Transmission have almost 3 MPG more than automatic.
+
+However, the interaction between Transmission type and car Weight was also included due to its significance (full output in Appendix):
+
+```{r}
+mpg_lm_final <- lm(formula = mpg ~ am + wt + qsec + am*wt, data = mtcars)
+coefficients(mpg_lm_final)
+```
+
+Based on this model, the difference in MPG between manual and automatic transmission is not constant. Instead, it is determined by the formula: 14.079 - 4.141 * Weight. This means that lighter cars have much higher difference at MPG compared to heavier cars. 
+
+All coefficients, except Intercept, are significantly significant at 95% level:
+```{r}
+confint(mpg_lm_final)
+```
+We observe high multicollinearity (VIF > 2) among some predictors. But it is due to the fact that we have an interaction term.
+```{r}
+library(car)
+vif(mpg_lm_final)
+```
+The residual diagnostics (see Appendix) didn't identify any issues:
+
+- Residuals don't have any distinct patterns (chart 1) 
+
+- For the most part they are normally distributed (with some deviations at higher quantiles) (char 2)
+
+- Assumption of homoscedasticity does not seem violated (chart 3)
+
+- There are no outliers that skew the model (chart 4)
+
+Therefore, the final selected model provides reliable insights.
+
+<P style="page-break-before: always">
+## Appendix
+
+### Model Selection: stepwise itirations
+
+We used the following method to select a model:
+```{r, results = 'hide'}
+mpg_lm_base <- lm(data = mtcars,
+                  mpg ~ am)
+mpg_lm_full <- lm(data = mtcars,
+                  mpg ~ .)
+mpg_lm_step <- step(mpg_lm_base, scope=list(lower=mpg_lm_base, upper=mpg_lm_full), direction="both")
+```
+
+```{r}
+mpg_lm_step
+```
+
+Final model:
+```{r}
+summary(mpg_lm_final)
+```
+
+<P style="page-break-before: always">
+Residual Diagnostics
+
+```{r}
+par(mfrow = c(2,2), oma = c(0, 0, 0, 0))
+plot(mpg_lm_final)
+```
